@@ -1,44 +1,20 @@
 import os
 import random
+random.seed(42)
 from parlai.core.params import ParlaiParser
 from parlai.core.agents import create_agent
 from parlai.core.worlds import create_task
 from parlai.core.script import ParlaiScript, register_script
 from parlai.utils.strings import colorize
 import parlai.utils.logging as logging
+from parlai.core.torch_agent import Batch
 
-
-# MODEL_FILE = 'zoo:bot_adversarial_dialogue/multi_turn/model'
-# DATAPATH = ''
-# NUM_EXAMPLES = 1
-
-# os.system("parlai display_model --task bot_adversarial_dialogue --modelfile " + MODEL_FILE + " --datatype valid --datapath " + DATAPATH + " --num-examples " + str(NUM_EXAMPLES))
-
-def run_classifier(opt):
-    random.seed(42)
-
-    # Create model and assign it to the specified task
+def run_classifier(opt, data_from_targetLM="NONE"):
     agent = create_agent(opt)
-    print("AGENT: ", agent)
-#     world = create_task(opt, agent)
-#     agent.opt.log()
-
-    # Show some example dialogs.
-#     turn = 0
-#     with world:
-#         for _k in range(int(opt['num_examples'])):
-#             world.parley()
-#             if opt['verbose'] or opt.get('display_add_fields', ''):
-#                 print(world.display() + "\n~~")
-# #             else:
-# #                 simple_display(opt, world, turn)
-#             turn += 1
-#             if world.get_acts()[0]['episode_done']:
-#                 turn = 0
-#             if world.epoch_done():
-#                 logging.info("epoch done")
-#                 turn = 0
-#                 break
+    # TODO: figure out how to create Batch object using parsed data from Target LM
+    harmfulness_score = agent.score(input_vec)
+    print("Harmfulness Score: ", harmfulness_score)
+    return harmfulness_score
 
 @register_script("classifier", aliases=["classifier"])
 class Classifier(ParlaiScript):
@@ -46,11 +22,17 @@ class Classifier(ParlaiScript):
     def setup_args(cls):
         parser = ParlaiParser(True, True)
         parser.add_argument('-n', '-ne', '--num-examples', default=1)
+        print("Parser: ", parser)
+#         parser.set_defaults(interactive_mode=True)
+#         parser.set_defaults(print_scores=True)
+        parser.set_defaults(batch_size=1)
+        parser.set_defaults(task='bot_adversarial_dialogue')
+        parser.set_defaults(model_file='zoo:bot_adversarial_dialogue/multi_turn/model')
         parser.set_defaults(datatype='valid')
         return parser
 
-    def run(self):
-        run_classifier(self.opt)
+    def run(self, data_from_targetLM="NONE"):
+        run_classifier(self.opt, data_from_targetLM)
         
 if __name__ == '__main__':
     Classifier.main()
