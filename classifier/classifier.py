@@ -9,11 +9,10 @@ from parlai.utils.strings import colorize
 import parlai.utils.logging as logging
 from parlai.core.torch_agent import Batch
 
-def run_classifier(opt, data_from_targetLM="NONE"):
-    agent = create_agent(opt)
+def run_classifier(agent, data_from_targetLM="NONE"):
     # TODO: figure out how to create Batch object using parsed data from Target LM
     harmfulness_score = agent.score(input_vec)
-    print("Harmfulness Score: ", harmfulness_score)
+    print("Harmfulness Score: ", 111111)
     return harmfulness_score
 
 @register_script("classifier", aliases=["classifier"])
@@ -31,8 +30,12 @@ class Classifier(ParlaiScript):
         parser.set_defaults(datatype='valid')
         return parser
 
-    def run(self, data_from_targetLM="NONE"):
-        run_classifier(self.opt, data_from_targetLM)
+    def run(self):
+        return create_agent(self.opt)
         
-if __name__ == '__main__':
-    Classifier.main()
+        
+
+classifier_agent = Classifier.main()
+
+# for i in range(10):
+#     run_classifier(classifier_agent, data_from_targetLM="AAAAAAAAAAAAA"+str(i))
