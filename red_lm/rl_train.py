@@ -11,7 +11,10 @@ from trl.gpt2 import GPT2HeadWithValueModel, respond_to_batch
 from trl.ppo import PPOTrainer
 from trl.core import build_bert_batch_from_txt
 import yaml
-sys.path.insert(0, '../classifier')
+from parlai.core.agents import create_agent_from_model_file
+from parlai.core.teachers import register_teacher, DialogTeacher
+from parlai.scripts.eval_model import EvalModel
+from parlai.utils.safety import OffensiveStringMatcher, OffensiveLanguageClassifier
 
 
 config = {
@@ -23,7 +26,7 @@ config = {
     "forward_batch_size": 16,
     "ppo_epochs": 4,   
     "txt_in_len": 5,
-    "txt_out_len": 15,
+    "txt_out_len": 150,
     "lr": 1.41e-5,
     "init_kl_coef":0.2,
     "target": 6,
@@ -33,36 +36,52 @@ config = {
     "cliprange": .2,
     "cliprange_value":.2,
     "vf_coef":.1,
+    "response_save_file": f'./data/response/few_shot_sample.responses.all.jsonl',
 }
 
 
-class RLAgent:
-    def __init__(self, config,wandb,classifer=None):
+@register_teacher("test_cases")
+class MyTeacher(DialogTeacher):
+  def __init__(self, opt, shared=None):
+    opt['datafile'] = f'./data/query/test_cases.txt'
+    super().__init__(opt, shared)
+  
+  def setup_data(self, datafile):
+    print(f" ~~ Loading from {datafile} ~~ ")
+    with open(self.opt['datafile']) as f:
+      lines = [line.strip() for line in f]
+
+    # Get first dialogue utterances written by humans
+    for text in lines:
+      yield (text, '__notok__'), True
+
+
+class RLAgent():
+    def __init__(self, config,device,classifer=None):
         self.config=config
         self.device= device
-        self.ppo_trainer= PPOTrainer(gpt2_model, gpt2_model_ref, **config)
-
         self.model = GPT2HeadWithValueModel.from_pretrained(config['lm_name'])
         self.model_ref = GPT2HeadWithValueModel.from_pretrained(config['ref_lm_name'])
         self.tokenizer = GPT2Tokenizer.from_pretrained(config['tk_name'])
-
         if classifier:
             self.classifier= classifier
         else:
             self.classifier= None
         
         self.wandb= None
-        if wandb:
-            self.wandb= wandb
 
     def train(self, data):
+        
+        
         data['tokens']=  data['prompt'].progress_apply(lambda x: self.tokenizer.encode(x, return_tensors="pt").to(self.device)[0,:])
         data['query'] = data['tokens'].progress_apply(lambda x: gpt2_tokenizer.decode(x))
         
         fbs= self.config["forward_batch_size"]
+        clf_file, clf = create_classifier()
 
         for epoch in tqdm(range(int(np.ceil(config["steps"]/config['batch_size'])))):
-            torch.cuda.empty_cache()
+            if device=='cuda':
+                torch.cuda.empty_cache()
             logs = dict()
             game_data = dict()
             timing = dict()
@@ -71,11 +90,11 @@ class RLAgent:
             #### get a batch from the dataset
             data_batch = data.sample(config['batch_size'])
             game_data['query'] = data_batch['query'].tolist()
-            prompt_tensors = torch.stack(data_batch['tokens'].tolist())
+            query_tensors = torch.stack(data_batch['tokens'].tolist())
             
-            #### get response from gpt2
+            #### generate questions(test_cases) from gpt2(red_lm)
             t = time.time()
-            total_length = config['txt_in_len']+config['txt_out_len']
+            # total_length = config['txt_in_len']+config['txt_out_len']
             response_tensors = []
             for i in range(int(config['batch_size']/fbs)):
                 response  = respond_to_batch(self.model, query_tensors[i*fbs:(i+1)*fbs],
@@ -93,13 +112,24 @@ class RLAgent:
             timing['time/build_input_sentiment'] = time.time()-t
 
             #### get classifier score
+            response_save_file = config['response_save_file']
+            EvalModel.main(task='rl_test_cases', model_file="zoo:blender/blender_400Mdistill/model", skip_generation=False, batchsize=64, world_logs=response_save_file)
+            with open(response_save_file) as f:
+                responses = [json.loads(line) for line in f]
+
+            humans = [response['dialog'][0][0]['text'] for response in responses]
+            bots = [response['dialog'][0][1]['text'] for response in responses]
+            texts = ['\n'.join([turn['text'] for turn in response['dialog'][0]]) for response in responses]
             t = time.time()
-            rewards = []
-            for i in range(int(config['batch_size']/fbs)):
-                res = classifier_model.forward(classifier_inputs[i*fbs:(i+1)*fbs],
-                                            attention_masks[i*fbs:(i+1)*fbs])[0][:, 1].detach()
-                rewards.append(res)
-            rewards = torch.cat(rewards)
+            preds, confs = zip(*[clf.contains_offensive_language(text) for text in tqdm(texts)])
+            probs = np.array([conf if pred else (1 - conf) for pred, conf in zip(preds, confs)])
+            rewards = probs
+            # rewards = []
+            # for i in range(int(config['batch_size']/fbs)):
+            #     res = classifier_model.forward(classifier_inputs[i*fbs:(i+1)*fbs],
+            #                                 attention_masks[i*fbs:(i+1)*fbs])[0][:, 1].detach()
+            #     rewards.append(res)
+            # rewards = torch.cat(rewards)
             timing['time/get_sentiment_preds'] = time.time()-t
             
             #### Run PPO training 
