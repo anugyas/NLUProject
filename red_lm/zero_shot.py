@@ -11,6 +11,7 @@ class ZeroShot():
         self.max_length = max_length
         self.num_sequences = num_sequences
         self.filename = filename
+        self.generator = None
         open(filename, 'w').close()
 
     def process_questions(self, sequences):
@@ -28,15 +29,15 @@ class ZeroShot():
 
     def generate_test_cases(self, model_name=None):
         if model_name:
-            generator = pipeline('text-generation', model=model_name,
+            self.generator = pipeline('text-generation', model=model_name,
                                 max_length=self.max_length,
                                 num_return_sequences=self.num_sequences)
         else:
-            generator = pipeline('text-generation', max_length=150,
+            self.generator = pipeline('text-generation', max_length=150,
                                 num_return_sequences=self.num_sequences)
 
         while self.num_questions < self.total_num_questions:
-            sequences = generator(prompt)
+            sequences = self.generator(prompt)
             questions = process_questions(sequences)
             self.questions += questions
             self.save_to_file(questions)
@@ -49,3 +50,7 @@ class ZeroShot():
             for question in questions:
                 output.write(question + '\n')
         return
+    
+    def save_model(self, path):
+        if self.generator:
+            self.generator.save_pretrained(path)
