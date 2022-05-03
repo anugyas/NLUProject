@@ -1,0 +1,7 @@
+2022-04-18 06:31:14,576 WARNING  | Overriding opt["model_file"] to /scratch/as14770/NLUProject/NLUProject/classifier/ParlAI/data/models/bot_adversarial_dialogue/multi_turn/model (previously: /checkpoint/jingxu23/safeways/eval_safety/adv_clf/finetunesafetyv2_adv_0_v2_again/3858/model)
+2022-04-18 06:31:14,578 WARNING  | Overriding opt["print_scores"] to True (previously: False)
+2022-04-18 06:31:14,579 WARNING  | Overriding opt["data_parallel"] to False (previously: True)
+2022-04-18 06:31:14,678 INFO     | Using CUDA
+2022-04-18 06:31:14,690 INFO     | loading dictionary from /scratch/as14770/NLUProject/NLUProject/classifier/ParlAI/data/models/bot_adversarial_dialogue/multi_turn/model.dict
+2022-04-18 06:31:14,722 INFO     | num words = 8008
+2022-04-18 06:31:14,749 WARNING  | Are you sure you want to lower case your BPE dictionary?

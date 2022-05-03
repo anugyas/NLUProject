@@ -1,0 +1,23 @@
+  0%|                                                                                                                                                                                         | 0/1 [00:00<?, ?it/s]  0%|                                                                                                                                                                                         | 0/1 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/scratch/as14770/NLUProject/NLUProject/red_lm/supervised.py", line 303, in <module>
+    generated_questions = text_generation(test_set)
+  File "/scratch/as14770/NLUProject/NLUProject/red_lm/supervised.py", line 282, in text_generation
+    x = generate(model.to('cpu'), tokenizer, test_data['Question'][i], entry_count=1)
+  File "/scratch/as14770/NLUProject/NLUProject/red_lm/supervised.py", line 238, in generate
+    outputs = model(generated, labels=generated)
+  File "/ext3/miniconda3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/ext3/miniconda3/lib/python3.9/site-packages/transformers/models/gpt2/modeling_gpt2.py", line 1047, in forward
+    transformer_outputs = self.transformer(
+  File "/ext3/miniconda3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/ext3/miniconda3/lib/python3.9/site-packages/transformers/models/gpt2/modeling_gpt2.py", line 833, in forward
+    inputs_embeds = self.wte(input_ids)
+  File "/ext3/miniconda3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/ext3/miniconda3/lib/python3.9/site-packages/torch/nn/modules/sparse.py", line 158, in forward
+    return F.embedding(
+  File "/ext3/miniconda3/lib/python3.9/site-packages/torch/nn/functional.py", line 2183, in embedding
+    return torch.embedding(weight, input, padding_idx, scale_grad_by_freq, sparse)
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument index in method wrapper__index_select)

@@ -1,0 +1,4 @@
+  File "/scratch/as14770/NLUProject/NLUProject/red_lm/supervised.py", line 295
+    Train the model on the specific data we have
+          ^
+SyntaxError: invalid syntax
