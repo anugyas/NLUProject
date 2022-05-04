@@ -52,9 +52,11 @@ class MyDataset(Dataset):
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_type)
         self.questions = []
         
+        print("Control Code: ", control_code)
+        
         for row in df['Question']:
             self.questions.append(torch.tensor(
-                self.tokenizer.encode(f"<|{control_code}|>{row[:max_length]}<|endoftext|>")
+                self.tokenizer.encode(f"{row[:max_length]}<|endoftext|>")
             ))
                            
         self.questions_count = len(self.questions)
@@ -154,12 +156,12 @@ def prepare_test_data(dataset_df):
 
     print("Test Set Head:\n", test_set.head())
     
-    return test_set
+    return df, test_set
 
 
 def train(
     dataset, model, tokenizer,
-    batch_size=16, epochs=1, lr=2e-5,
+    batch_size=16, epochs=5, lr=2e-5,
     max_seq_len=400, warmup_steps=200,
     gpt2_type="gpt2", output_dir=".", output_prefix="wreckgar",
     test_mode=False,save_model_on_epoch=False,
@@ -286,20 +288,20 @@ def text_generation(test_data):
 
 
 if __name__ == "__main__":
-    dataset_df = process_zs_generated_questions()
-    test_set = prepare_test_data(dataset_df)
-    dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
+#     dataset_df = process_zs_generated_questions()
+#     dataset_df, test_set = prepare_test_data(dataset_df)
+#     dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
+#     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
     model = GPT2LMHeadModel.from_pretrained('gpt2-large')
 
-# #     Train the model on the specific data we have
+#     Train the model on the specific data we have
 #     model = train(dataset, model, tokenizer)
 
-# #     Save the model to a pkl or something so it can be reused later on
-#     torch.save(model, 'model_gpt2_large.pt')
+#     Save the model to a pkl or something so it can be reused later on
+#     torch.save(model, 'model_gpt2_large_more_epochs.pt')
 
     #Load the model to use it
-    model = torch.load('model_gpt2_large.pt')
+    model = torch.load('model_gpt2_large_more_epochs.pt')
 
 #     generated_questions = text_generation(test_set)
     
@@ -307,43 +309,43 @@ if __name__ == "__main__":
     
     processed_prompt_generated_questions = process_questions(prompt_generated_questions)
     
-    with open("sl_1k_test_cases-gpt2large.txt", "w+") as sl_test_cases_file:
+    with open("sl_1k_test_cases-gpt2large-more_epochs.txt", "w+") as sl_test_cases_file:
         for entry in processed_prompt_generated_questions:
             sl_test_cases_file.write(entry+"\n")
     
     print("Generated questions after training: \n", prompt_generated_questions)
     
     #Loop to keep only generated text and add it as a new column in the dataframe
-    my_generations=[]
+#     my_generations=[]
 
-    for i in range(len(generated_lyrics)):
-        if len(test_set['Question'][i]) > 0:
-            a = test_set['Question'][i].split()[-30:] #Get the matching string we want (30 words)
-            b = ' '.join(a)
-            c = ' '.join(generated_questions[i]) #Get all that comes after the matching string
-            my_generations.append(c.split(b)[-1])
-        else:
-            my_generations.append("<|endoftext>|")
+#     for i in range(len(generated_lyrics)):
+#         if len(test_set['Question'][i]) > 0:
+#             a = test_set['Question'][i].split()[-30:] #Get the matching string we want (30 words)
+#             b = ' '.join(a)
+#             c = ' '.join(generated_questions[i]) #Get all that comes after the matching string
+#             my_generations.append(c.split(b)[-1])
+#         else:
+#             my_generations.append("<|endoftext>|")
 
-    test_set['Generated_question'] = my_generations
+#     test_set['Generated_question'] = my_generations
 
-    #Finish the sentences when there is a point, remove after that
-    final=[]
+#     #Finish the sentences when there is a point, remove after that
+#     final=[]
 
-    for i in range(len(test_set)):
-        to_remove = test_set['Generated_question'][i].split('.')[-1]
-        final.append(test_set['Generated_question'][i].replace(to_remove,''))
+#     for i in range(len(test_set)):
+#         to_remove = test_set['Generated_question'][i].split('.')[-1]
+#         final.append(test_set['Generated_question'][i].replace(to_remove,''))
 
-    test_set['Generated_question'] = final
-    print("Test Results: ", test_set['Generated_question'])
+#     test_set['Generated_question'] = final
+#     print("Test Results: ", test_set['Generated_question'])
 
-    scores=[]
+#     scores = []
 
-    for i in range(len(test_set)):
-        reference = test_set['True_end_question'][i]
-        candidate = test_set['Generated_question'][i]
-        scores.append(sentence_bleu(reference, candidate))
+#     for i in range(len(test_set)):
+#         reference = test_set['True_end_question'][i]
+#         candidate = test_set['Generated_question'][i]
+#         scores.append(sentence_bleu(reference, candidate))
 
-    statistics.mean(scores)
-    rouge=Rouge()
-    rouge.get_scores(test_set['Generated_question'], test_set['True_end_question'])
+#     statistics.mean(scores)
+#     rouge = Rouge()
+#     rouge.get_scores(test_set['Generated_question'], test_set['True_end_question'])
