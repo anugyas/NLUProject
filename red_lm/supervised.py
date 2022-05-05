@@ -291,7 +291,7 @@ if __name__ == "__main__":
 #     dataset_df = process_zs_generated_questions()
 #     dataset_df, test_set = prepare_test_data(dataset_df)
 #     dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
-#     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
     model = GPT2LMHeadModel.from_pretrained('gpt2-large')
 
 #     Train the model on the specific data we have

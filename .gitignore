@@ -1,1 +1,4 @@
 data/response/*
+.ipynb_checkpoints/*
+red_lm/checkpoints/*
+classifier/.ipynb_checkpoints/*
