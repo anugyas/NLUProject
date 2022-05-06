@@ -12,7 +12,7 @@ import re
 tqdm.pandas()
 from datasets import load_dataset, Dataset
 import wandb
-sys.path.append('/scratch/ra3136/nlu/NLUProject/')
+sys.path.append('/scratch/as14770/NLUProject/NLUProject/')
 
 from trl.gpt2 import GPT2HeadWithValueModel, respond_to_batch
 from trl.ppo import PPOTrainer
@@ -92,7 +92,9 @@ class RLAgent():
     def __init__(self,device,classifer=None):
         self.device= device
         self.model = GPT2HeadWithValueModel.from_pretrained(config['lm_name'])
+        self.model = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
         self.model_ref = GPT2HeadWithValueModel.from_pretrained(config['ref_lm_name'])
+        self.model_ref = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
         self.tokenizer = GPT2Tokenizer.from_pretrained(config['tk_name'])
         _, self.clf = create_classifier()
         self.ppo_trainer = PPOTrainer(self.model, self.model_ref, **config)
@@ -177,6 +179,8 @@ class RLAgent():
             #### Run PPO training 
             t = time.time()
             stats = self.ppo_trainer.step(query_tensors, response_tensors, rewards)
+            torch.save(self.ppo_trainer.model, 'rl_model_sl.pth')
+            torch.save(self.ppo_trainer.ref_model, 'rl_model_ref_sl.pth')
             timing['time/optimization'] = time.time()-t
 
             #### Log everything
