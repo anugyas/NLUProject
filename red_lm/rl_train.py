@@ -92,16 +92,16 @@ class RLAgent():
     def __init__(self,device,classifer=None):
         self.device= device
         self.model = GPT2HeadWithValueModel.from_pretrained(config['lm_name'])
-        self.model = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
+        self.model.transformer = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
         self.model_ref = GPT2HeadWithValueModel.from_pretrained(config['ref_lm_name'])
-        self.model_ref = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
+        self.model_ref.transformer = torch.load("/scratch/as14770/NLUProject/NLUProject/red_lm/model_gpt2_large.pt")
         self.tokenizer = GPT2Tokenizer.from_pretrained(config['tk_name'])
         _, self.clf = create_classifier()
         self.ppo_trainer = PPOTrainer(self.model, self.model_ref, **config)
         
 #         self.config=config
         
-        wandb.init(name='run-42', project='offensive', config=config, )
+        wandb.init(project='offensive', config=config, )
 #         wandb.watch(self.gpt2_model, log='all')
     
     def compute_rewards(self, scores, lengths, device):
