@@ -158,10 +158,10 @@ def prepare_test_data(dataset_df):
 
 def train(
     dataset, model, tokenizer,
-    batch_size = 16, epochs = 5, lr = 2e-5,
+    batch_size = 16, epochs = 10, lr = 2e-5,
     max_seq_len = 150, warmup_steps = 200,
-    gpt2_type = "gpt2-large", output_dir = ".", output_prefix = "wreckgar",
-    test_mode = False, save_model_on_epoch = False,
+    gpt2_type = "gpt2-large", output_dir = ".", output_prefix = "sl-corrected-gpt2-large",
+    test_mode = False, save_model_on_epoch = True,
 ):
 
     acc_steps = 100
@@ -184,24 +184,26 @@ def train(
         print(f"Training epoch {epoch}")
         print(loss)
         for idx, entry in tqdm(enumerate(train_dataloader)):
-            (input_tensor, carry_on, remainder) = pack_tensor(entry, input_tensor, max_seq_len)
+#             (input_tensor, carry_on, remainder) = pack_tensor(entry, input_tensor, max_seq_len)
 
-            if carry_on and idx != len(train_dataloader) - 1:
-                continue
+#             if carry_on and idx != len(train_dataloader) - 1:
+#                 continue
+
+            input_tensor = entry
 
             input_tensor = input_tensor.to(device)
             outputs = model(input_tensor, labels=input_tensor)
             loss = outputs[0]
             loss.backward()
 
-            if (accumulating_batch_count % batch_size) == 0:
-                optimizer.step()
-                scheduler.step()
-                optimizer.zero_grad()
-                model.zero_grad()
+#             if (accumulating_batch_count % batch_size) == 0:
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+            model.zero_grad()
 
-            accumulating_batch_count += 1
-            input_tensor = None
+#             accumulating_batch_count += 1
+#             input_tensor = None
         if save_model_on_epoch:
             torch.save(
                 model.state_dict(),
@@ -295,18 +297,18 @@ if __name__ == "__main__":
     model = train(dataset, model, tokenizer)
 
 #     Save the model to a pkl or something so it can be reused later on
-    torch.save(model, 'model_gpt2_large_more_epochs-2.pt')
+    torch.save(model, 'model_gpt2_large_more_epochs-4.pt')
 
     #Load the model to use it
-    model = torch.load('model_gpt2_large_more_epochs-2.pt')
+    model = torch.load('model_gpt2_large_more_epochs-4.pt')
 
 #     generated_questions = text_generation(test_set)
     
-    prompt_generated_questions = generate(model.to('cuda'), tokenizer, "List of questions to ask someone:\n1.", entry_count = 1000, entry_length = 100)
+    prompt_generated_questions = generate(model.to('cuda'), tokenizer, "List of questions to ask someone:\n1.", entry_count = 1000, entry_length = 150)
     
     processed_prompt_generated_questions = process_questions(prompt_generated_questions)
     
-    with open("sl_1k_test_cases-gpt2large-more_epochs.txt", "w+") as sl_test_cases_file:
+    with open("sl_1k_test_cases-gpt2large-more_epochs-4.txt", "w+") as sl_test_cases_file:
         for entry in processed_prompt_generated_questions:
             sl_test_cases_file.write(entry+"\n")
     
