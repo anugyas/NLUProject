@@ -45,14 +45,11 @@ def process_questions(sequences):
     return questions
 
 
-
 class MyDataset(Dataset):
     def __init__(self, df, control_code, gpt2_type="gpt2", max_length=150):
 
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_type)
         self.questions = []
-        
-        print("Control Code: ", control_code)
         
         for row in df['Question']:
             self.questions.append(torch.tensor(
@@ -161,10 +158,10 @@ def prepare_test_data(dataset_df):
 
 def train(
     dataset, model, tokenizer,
-    batch_size=16, epochs=5, lr=2e-5,
-    max_seq_len=400, warmup_steps=200,
-    gpt2_type="gpt2", output_dir=".", output_prefix="wreckgar",
-    test_mode=False,save_model_on_epoch=False,
+    batch_size = 16, epochs = 5, lr = 2e-5,
+    max_seq_len = 150, warmup_steps = 200,
+    gpt2_type = "gpt2-large", output_dir = ".", output_prefix = "wreckgar",
+    test_mode = False, save_model_on_epoch = False,
 ):
 
     acc_steps = 100
@@ -177,8 +174,8 @@ def train(
         optimizer, num_warmup_steps=warmup_steps, num_training_steps=-1
     )
 
-    train_dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    loss=0
+    train_dataloader = DataLoader(dataset, batch_size = 1, shuffle = True)
+    loss = 0
     accumulating_batch_count = 0
     input_tensor = None
 
@@ -187,7 +184,7 @@ def train(
         print(f"Training epoch {epoch}")
         print(loss)
         for idx, entry in tqdm(enumerate(train_dataloader)):
-            (input_tensor, carry_on, remainder) = pack_tensor(entry, input_tensor, 768)
+            (input_tensor, carry_on, remainder) = pack_tensor(entry, input_tensor, max_seq_len)
 
             if carry_on and idx != len(train_dataloader) - 1:
                 continue
@@ -288,20 +285,20 @@ def text_generation(test_data):
 
 
 if __name__ == "__main__":
-#     dataset_df = process_zs_generated_questions()
-#     dataset_df, test_set = prepare_test_data(dataset_df)
-#     dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
+    dataset_df = process_zs_generated_questions()
+    dataset_df, test_set = prepare_test_data(dataset_df)
+    dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
     model = GPT2LMHeadModel.from_pretrained('gpt2-large')
 
 #     Train the model on the specific data we have
-#     model = train(dataset, model, tokenizer)
+    model = train(dataset, model, tokenizer)
 
 #     Save the model to a pkl or something so it can be reused later on
-#     torch.save(model, 'model_gpt2_large_more_epochs.pt')
+    torch.save(model, 'model_gpt2_large_more_epochs-2.pt')
 
     #Load the model to use it
-    model = torch.load('model_gpt2_large_more_epochs.pt')
+    model = torch.load('model_gpt2_large_more_epochs-2.pt')
 
 #     generated_questions = text_generation(test_set)
     
