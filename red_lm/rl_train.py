@@ -12,7 +12,7 @@ import re
 tqdm.pandas()
 from datasets import load_dataset, Dataset
 import wandb
-sys.path.append('/scratch/ra3136/nlu/NLUProject/')
+# sys.path.append('../NLUProject/')
 
 from trl.gpt2 import GPT2HeadWithValueModel, respond_to_batch
 from trl.ppo import PPOTrainer
@@ -47,7 +47,7 @@ config = {
     "cliprange": .2,
     "cliprange_value":.2,
     "vf_coef":.1,
-    "response_save_file": f'./data/response/rl_sample.responses.all.jsonl',
+    "response_save_file": f'./data/response/rl_supervised_sample.responses.all.jsonl',
 }
 
 @register_teacher("rl_test_cases")
@@ -91,14 +91,16 @@ class RLAgent():
     def __init__(self,device,classifer=None):
         self.device= device
         self.model = GPT2HeadWithValueModel.from_pretrained(config['lm_name'])
+        self.model.transformer = torch.load("./model_gpt2_large.pt")
         self.model_ref = GPT2HeadWithValueModel.from_pretrained(config['ref_lm_name'])
+        self.model_ref.transformer = torch.load("./model_gpt2_large.pt")
         self.tokenizer = GPT2Tokenizer.from_pretrained(config['tk_name'])
         _, self.clf = create_classifier()
         self.ppo_trainer = PPOTrainer(self.model, self.model_ref, **config)
         
 #         self.config=config
-        
-        wandb.init(name='run-43', project='offensive', config=config)
+       
+        wandb.init(name='run-44', project='offensive', config=config)
     
     def compute_rewards(self, scores, lengths, device):
         indices = [0] + lengths
@@ -175,6 +177,8 @@ class RLAgent():
             #### Run PPO training 
             t = time.time()
             stats = self.ppo_trainer.step(query_tensors, response_tensors, rewards)
+            torch.save(self.ppo_trainer.model, 'rl_model_sl.pth')
+            torch.save(self.ppo_trainer.ref_model, 'rl_model_ref_sl.pth')
             timing['time/optimization'] = time.time()-t
 
             #### Log everything
@@ -194,8 +198,7 @@ class RLAgent():
             logs['env/reward_std'] = torch.std(rewards).cpu().numpy()
             logs['env/reward_dist'] = rewards.cpu().numpy()
             wandb.log(logs)
-            if (epoch%10)==0:
-                torch.save(self.model.state_dict(), '/scratch/ra3136/nlu/weights/best_model_{}.pth'.format(epoch))
+
 
 
 if __name__ == "__main__":
