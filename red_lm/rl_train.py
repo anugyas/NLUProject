@@ -24,7 +24,6 @@ from parlai.scripts.eval_model import EvalModel
 from parlai.utils.safety import OffensiveStringMatcher, OffensiveLanguageClassifier
 from parlai.scripts.display_model import DisplayModel
 
-
 from red_lm.zero_shot import ZeroShot
 from classifier.classifier import create_classifier
 
@@ -33,9 +32,9 @@ config = {
     "lm_name": "gpt2-large",
     "ref_lm_name": "gpt2-large",
     "tk_name": "gpt2",
-    "steps": 25600,
-    "batch_size": 4,
-    "forward_batch_size": 2,
+    "steps": 2560,
+    "batch_size": 10,
+    "forward_batch_size": 5,
     "ppo_epochs": 4,
     "txt_in_len": 5,
     "txt_out_len": 150,
@@ -99,14 +98,13 @@ class RLAgent():
         
 #         self.config=config
         
-        wandb.init(name='run-42', project='offensive', config=config, )
-#         wandb.watch(self.gpt2_model, log='all')
+        wandb.init(name='run-43', project='offensive', config=config)
     
     def compute_rewards(self, scores, lengths, device):
         indices = [0] + lengths
         indices = np.cumsum(indices)
         pairs = zip(indices[:-1], indices[1:])
-        rewards = [np.average(scores[start:end]) if start != end else 0.0 for start, end in pairs]
+        rewards = [np.average(scores[start:end]) if start != end else -1.0 for start, end in pairs]
         return torch.tensor(rewards).to(device)
 
     def train(self):
@@ -196,6 +194,8 @@ class RLAgent():
             logs['env/reward_std'] = torch.std(rewards).cpu().numpy()
             logs['env/reward_dist'] = rewards.cpu().numpy()
             wandb.log(logs)
+            if (epoch%10)==0:
+                torch.save(self.model.state_dict(), '/scratch/ra3136/nlu/weights/best_model_{}.pth'.format(epoch))
 
 
 if __name__ == "__main__":
