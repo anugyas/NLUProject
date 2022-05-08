@@ -12,7 +12,6 @@ import re
 tqdm.pandas()
 from datasets import load_dataset, Dataset
 import wandb
-# sys.path.append('../NLUProject/')
 
 from trl.gpt2 import GPT2HeadWithValueModel, respond_to_batch
 from trl.ppo import PPOTrainer
@@ -27,14 +26,13 @@ from parlai.scripts.display_model import DisplayModel
 from red_lm.zero_shot import ZeroShot
 from classifier.classifier import create_classifier
 
-
 config = {
     "lm_name": "gpt2-large",
     "ref_lm_name": "gpt2-large",
     "tk_name": "gpt2",
     "steps": 2560,
-    "batch_size": 10,
-    "forward_batch_size": 5,
+    "batch_size": 24,
+    "forward_batch_size": 8,
     "ppo_epochs": 4,
     "txt_in_len": 5,
     "txt_out_len": 150,
@@ -88,19 +86,17 @@ def process_questions(sequences):
 
 
 class RLAgent():
-    def __init__(self,device,classifer=None):
-        self.device= device
+    def __init__(self, device, classifer = None):
+        self.device = device
         self.model = GPT2HeadWithValueModel.from_pretrained(config['lm_name'])
         self.model.transformer = torch.load("./model_gpt2_large.pt")
         self.model_ref = GPT2HeadWithValueModel.from_pretrained(config['ref_lm_name'])
         self.model_ref.transformer = torch.load("./model_gpt2_large.pt")
         self.tokenizer = GPT2Tokenizer.from_pretrained(config['tk_name'])
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         _, self.clf = create_classifier()
         self.ppo_trainer = PPOTrainer(self.model, self.model_ref, **config)
-        
-#         self.config=config
-       
-        wandb.init(name='run-44', project='offensive', config=config)
+        wandb.init(project='offensive', config=config)
     
     def compute_rewards(self, scores, lengths, device):
         indices = [0] + lengths
@@ -133,29 +129,34 @@ class RLAgent():
 
             #### generate questions(test_cases) from gpt2(red_lm)
             t = time.time()
-            # total_length = config['txt_in_len']+config['txt_out_len']
             response_tensors = []
             for i in range(int(config['batch_size']/fbs)):
                 response = respond_to_batch(self.model, query_tensors[i*fbs:(i+1)*fbs], self.device,
                                             txt_len=config['txt_out_len'])
-                # TODO: process response to get responses (multiple questions)
-                # response_tensors += responses
-                # responses = process_questions(response)
                 response_tensors.append(response)
             response_tensors = torch.cat(response_tensors)
-    #         import pdb;pdb.set_trace()
 
             game_data['response'] = [self.tokenizer.decode(response_tensors[i, :]) for i in range(config['batch_size'])]
             game_data['response'], game_data['length'] = process_questions(game_data['response'])
+
+            response_tensors = []
+
             if np.sum(game_data['length']) == 0:
                 continue
             with open('rl_test_cases.txt', 'w') as f:
                 for i, questions in enumerate(game_data['response']):
+                    list_of_questions = []
                     if game_data['length'][i] == 0:
-                        continue
-                    for item in questions:
-                        question = ' '.join(item.split(' ')[1:])
-                        f.write("%s\n" % question)
+                        combined_qs =  "".join([self.tokenizer.eos_token]*config["txt_out_len"])
+                    else:
+                        for j, item in enumerate(questions):
+                            question = ' '.join(item.split(' ')[1:])
+                            f.write("%s\n" % question)
+                        combined_qs = "/n".join(questions)
+                    
+                    response_tensors.append(self.tokenizer.encode(combined_qs, return_tensors = 'pt', padding = 'max_length', max_length = config["txt_out_len"]))
+
+            response_tensors = torch.cat(response_tensors).to(self.device)
 
             timing['time/get_response'] = time.time()-t
 
@@ -198,8 +199,6 @@ class RLAgent():
             logs['env/reward_std'] = torch.std(rewards).cpu().numpy()
             logs['env/reward_dist'] = rewards.cpu().numpy()
             wandb.log(logs)
-
-
 
 if __name__ == "__main__":
     rl_agent = RLAgent('cuda')
