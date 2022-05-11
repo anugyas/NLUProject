@@ -60,6 +60,7 @@ class ValueHead(nn.Module):
             # self.summary = nn.Linear(config.hidden_size, num_classes)
             self.summary = nn.Sequential(
                 nn.Linear(config.hidden_size, hidden_size),
+                nn.ReLU(),
                 nn.Linear(hidden_size, num_classes))
 
         self.activation = Identity()
@@ -83,7 +84,7 @@ class ValueHead(nn.Module):
             output = hidden_states
         output = self.first_dropout(output)
         output = self.summary(output)
-        # output = self.activation(output)
+        output = self.activation(output)
         # output = self.last_dropout(output)
 
         return output

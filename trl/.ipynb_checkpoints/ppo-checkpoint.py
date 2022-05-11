@@ -133,6 +133,8 @@ class PPOTrainer:
         t = time.time()
         logprobs, ref_logprobs, values = self.batched_forward_pass(model_input, gen_len)
         timing['time/ppo/forward_pass'] = time.time()-t
+        
+        print(logprobs.shape, ref_logprobs.shape, scores.shape)
 
         t = time.time()
         rewards, non_score_reward, kl_coef = self.compute_rewards(scores, logprobs, ref_logprobs)
