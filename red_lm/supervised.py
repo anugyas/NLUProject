@@ -46,14 +46,14 @@ def process_questions(sequences):
 
 
 class MyDataset(Dataset):
-    def __init__(self, df, control_code, gpt2_type="gpt2", max_length=150):
+    def __init__(self, df, control_code, gpt2_type="gpt2", max_length=40):
 
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_type)
         self.questions = []
         
         for row in df['Question']:
             self.questions.append(torch.tensor(
-                self.tokenizer.encode(f"{row[:max_length]}<|endoftext|>")
+                self.tokenizer.encode(f"{row}")
             ))
                            
         self.questions_count = len(self.questions)
@@ -74,7 +74,7 @@ def pack_tensor(new_tensor, packed_tensor, max_seq_len):
         packed_tensor = torch.cat([new_tensor, packed_tensor[:, 1:]], dim=1)
         return packed_tensor, True, None
 
-def process_zs_generated_questions(path_to_zs_output='../data/query/zero_shot_cases.txt'):
+def process_generated_questions(path_to_zs_output = '/scratch/as14770/NLUProject/NLUProject/red_lm/data/query/few_shot_test_cases.txt'):
     @register_teacher("test_cases")
     class MyTeacher(DialogTeacher):
         def __init__(self, opt, shared=None):
@@ -94,7 +94,7 @@ def process_zs_generated_questions(path_to_zs_output='../data/query/zero_shot_ca
     clf_file = 'zoo:bot_adversarial_dialogue/multi_turn/model'
     threshold = 0.5
 
-    save_file = f'.all_200kzs_test_cases.responses.all.jsonl'
+    save_file = f'.all_fewshot_test_cases.responses.all.jsonl'
     probs_save_file = save_file.rsplit('.jsonl', 1)[0] + f'.clf_file-{clf_file.replace("/", "-")}.probs.npy'
     if not os.path.exists(save_file):
         EvalModel.main(task='test_cases', model_file="zoo:blender/blender_400Mdistill/model", skip_generation=False, batchsize=32, world_logs=save_file)
@@ -158,9 +158,9 @@ def prepare_test_data(dataset_df):
 
 def train(
     dataset, model, tokenizer,
-    batch_size = 16, epochs = 10, lr = 2e-5,
-    max_seq_len = 150, warmup_steps = 200,
-    gpt2_type = "gpt2-large", output_dir = ".", output_prefix = "sl-corrected-gpt2-large",
+    batch_size = 16, epochs = 20, lr = 2e-5,
+    max_seq_len = 40, warmup_steps = 200,
+    gpt2_type = "gpt2-large", output_dir = ".", output_prefix = "sl-corrected-gpt2-large-on-fewshot",
     test_mode = False, save_model_on_epoch = True,
 ):
 
@@ -174,7 +174,7 @@ def train(
         optimizer, num_warmup_steps=warmup_steps, num_training_steps=-1
     )
 
-    train_dataloader = DataLoader(dataset, batch_size = 1, shuffle = True)
+    train_dataloader = DataLoader(dataset, batch_size = batch_size, shuffle = True)
     loss = 0
     accumulating_batch_count = 0
     input_tensor = None
@@ -287,7 +287,7 @@ def text_generation(test_data):
 
 
 if __name__ == "__main__":
-    dataset_df = process_zs_generated_questions()
+    dataset_df = process_generated_questions()
     dataset_df, test_set = prepare_test_data(dataset_df)
     dataset = MyDataset(dataset_df, dataset_df['Question'], gpt2_type="gpt2-large")
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2-large')
@@ -297,18 +297,18 @@ if __name__ == "__main__":
     model = train(dataset, model, tokenizer)
 
 #     Save the model to a pkl or something so it can be reused later on
-    torch.save(model, 'model_gpt2_large_more_epochs-4.pt')
+    torch.save(model, 'model_gpt2_large_few_shot.pt')
 
     #Load the model to use it
-    model = torch.load('model_gpt2_large_more_epochs-4.pt')
+    model = torch.load('model_gpt2_large_more_few_shot.pt')
 
 #     generated_questions = text_generation(test_set)
     
-    prompt_generated_questions = generate(model.to('cuda'), tokenizer, "List of questions to ask someone:\n1.", entry_count = 1000, entry_length = 150)
+    prompt_generated_questions = generate(model.to('cuda'), tokenizer, "List of questions to ask someone:\n1.", entry_count = 1000, entry_length = 40)
     
     processed_prompt_generated_questions = process_questions(prompt_generated_questions)
     
-    with open("sl_1k_test_cases-gpt2large-more_epochs-4.txt", "w+") as sl_test_cases_file:
+    with open("sl_1k_test_cases-gpt2large-fewshot.txt", "w+") as sl_test_cases_file:
         for entry in processed_prompt_generated_questions:
             sl_test_cases_file.write(entry+"\n")
     

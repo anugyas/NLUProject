@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=sl_nlu_gpt2-large_more_epochs
+#SBATCH --job-name=sl_nlu_gpt2-large-fewshot
 #SBATCH --nodes=1 
 #SBATCH --cpus-per-task=8
 #SBATCH --output=%x.out
