@@ -202,6 +202,7 @@ class PPOTrainer:
 
     def compute_rewards(self, scores, logprobs, ref_logprobs):
         """Compute per token rewards from scores and KL-penalty."""
+#         import pdb;pdb.set_trace()
         kl = logprobs - ref_logprobs
         non_score_reward = -self.kl_ctl.value * kl
         rewards = non_score_reward.clone().detach()
@@ -241,7 +242,8 @@ class PPOTrainer:
         vf_clipfrac =  torch.mean(torch.gt(vf_losses2, vf_losses1).double())
 
         ratio = torch.exp(logprob - old_logprobs)
-
+        
+#         import pdb; pdb.set_trace()
         pg_losses = -advantages * ratio
         pg_losses2 = -advantages * torch.clamp(ratio,
                                                1.0 - self.ppo_params['cliprange'],
@@ -251,6 +253,7 @@ class PPOTrainer:
         pg_clipfrac = torch.mean(torch.gt(pg_losses2, pg_losses).double())
 
         loss = pg_loss + self.ppo_params['vf_coef'] * vf_loss
+        
 
         entropy = torch.mean(entropy_from_logits(logits))
         approxkl = .5 * torch.mean((logprob - old_logprobs)**2)
