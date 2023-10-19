@@ -1,5 +1,7 @@
 # NLU Project
 
+**Update**: Paper out on arXiv: https://arxiv.org/abs/2310.00892
+
 All of the supervised learning code is on master branch. 
 Whereas if you want to run RL training, please refer to feature/ppo branch.
 
